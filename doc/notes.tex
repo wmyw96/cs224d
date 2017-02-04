@@ -8,6 +8,7 @@
 \usepackage[colorlinks,linkcolor=red,anchorcolor=blue,citecolor=green,CJKbookmarks=true]{hyperref}
 \usepackage{indentfirst}
 \usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
 \usepackage[margin=3.5cm]{geometry}
 \usepackage{titlesec}
 \usepackage{amsmath}
@@ -331,19 +332,246 @@ J &=& -\log(\sigma(\mathrm{u}_c^T\hat{\mathrm{v}})) - \sum_{k=1}^K{\log(\sigma(-
 \label{ofnscbowgrad2}
 \frac{\partial J}{\partial \mathrm{u}_{c}} &=& -\big(1-\sigma(\mathrm{u}_{c}^T\hat{\mathrm{v}})\big)\hat{\mathrm{v}}^T \\
 \label{ofnscbowgrad3}
-\frac{\partial J}{\partial \bar{\mathrm{u}}_k} &=& \big(1-\sigma(-\bar{\mathrm{u}}_k^T\hat{\mathrm{v}})\big)\hat{\mathrm{v}}^T \\
+\frac{\partial J}{\partial \bar{\mathrm{u}}_k} &=& \big(1-\sigma(-\bar{\mathrm{u}}_k^T\hat{\mathrm{v}})\big)\hat{\mathrm{v}}^T
 \end{eqnarray}
+
+\subsection{GloVe}
+
+我们考虑结合Statistical Based Method和Iteration Based Method的优点——GloVe，其object function为：
+
+\begin{eqnarray}
+J = \frac{1}{2}\sum_{i,j=1}^{\lvert V\rvert}{f(P_{i,j})\big(\mathrm{u}_i^T\mathrm{v}_j-\log P_{i,j}\big)^2}
+\end{eqnarray}
+
+其中$f(x)=\max(1,2x)$，$\mathrm{u}_i,\mathrm{v}_j$为输出输入向量，$P_{i,j}$为单词$i,j$联合在窗口中出现的频率。
+
+\subsection{Tips}
+
+我们考虑一些实现的技巧，具体如下：
+
+\begin{itemize}
+	\item 最后的词向量是什么？可以简单地让$\text{word vector} = \text{input vector} + \text{output vector}$。
+	\item 超参数的选择：$n \sim [25,1000]$, $m \sim ?$。
+	\item 参数的初始化：用小的随机数初始化。
+\end{itemize}
 
 \subsection{Evaluation: Intrinsic and Extrinsic}
 
+我们考虑对word vectord的评估，在实际的应用中，word vector的模型是整个机器学习系统中的某一个子系统，并且这样的一个模型受到其超参数(hyperparameter)的影响，我们需要调整hyperparameter参数使得整个系统的表现尽量得好。
+
+首先考虑Intrinsic Evaluation，因为调整超参数后运行整个机器学习的系统会非常耗时，所以我们仅仅考虑word vector这样一个子系统，我们需要人为定义一个指标$P$来衡量word vector这个子系统的表现的好坏，同时，我们希望这样一个人为的指标$P$与整个机器系统的表现水平$P_f$正相关。
+
+然后我们考虑Extrinsic Evaluation，Extrinsic Evaluation就是考虑整个系统表现水平。
+
+\subsubsection*{Intrinsic Evaluation: Word Vector Analogies}
+
+我们考虑word vector在word vector analogies这项指标上的好坏，考虑这样一组不完整的word analogy:
+
+$$a:b::c:\text{?}$$
+
+我们通过训练好的word vector求出对应$?$的$d$[\ref{wad}]，然后再看是否和实际情况匹配。
+
+\begin{eqnarray}
+\label{wad}
+d=\argmax_{i}{\frac{(\mathrm{x}_b-\mathrm{x}_a+\mathrm{x}_c)^T\mathrm{x}_i}{\|\mathrm{x}_b-\mathrm{x}_a+\mathrm{x}_c \|}}
+\end{eqnarray}
+
+这样的word vector analogies主要有两种，syntax的和semantic的，其要求形式上就是$\mathrm{x}_b-\mathrm{x}_a \approx \mathrm{x}_d-\mathrm{x}_c$，下面是一些例子：
+
+\begin{itemize}
+	\item semantic: queen:king::actress:actor, Chicago:Illinois::Austin:Texas
+	\item syntax: bad:worst::big:biggest, dancing:danced::flying:fly
+\end{itemize}
+
+在具体评测中我们考虑以下几个超参数：
+
+\begin{itemize}
+	\item 词向量的维数$n$。
+	\item corpus的来源和数量
+	\item context window size $m$
+	\item context的对称性
+\end{itemize}
+
+我们评估word vector在word vector analogies上的表现(准确率)，我们可以得出以下的一些结论：
+
+\begin{itemize}
+	\item[1.] 目前最好的是GloVe，准确率最高在$75.0\%$(整体), $81.9\%$(semantics), $69.3\%$(syntax)。
+	\item[2.] 一般而言，数据集越大，效果越好；wiki的数据相比较于报刊的数据效果更好。
+	\item[3.] $n$的取值比较适中的时候效果最好。
+	\item[4.] $m$越大，semantic的效果越好，syntax的效果先升后降。
+\end{itemize}
+
+\subsubsection*{Intrinsic Evaluation: Correlation Evaluation}
+
+另外一种评价方法是给定一对单词，让计算机和人独立评估这两个单词的相关性$[0,10]$，比较两者的结果。
+
+\subsubsection*{Extension: $\text{Ambiguity}^*$}
+
+Improving word representations via global context and multiple word prototypes (Huang et al, 2012)
+
+主要思想为将k-means和iteration methods相结合。
+
+\subsubsection*{Extrinsic Tasks}
+
+我们考虑一些简单的NLP的任务：
+
+\begin{itemize}
+	\item named-entity recognition: 给一些专有名词分种类(比如John是人，2006是时间)。
+	\item sentiment analysis: 判断一个单词／短语／句子的情感是积极的还是消极的。
+\end{itemize}
+
+实际上，将这些问题形式化了之后都是解决这样的分类问题：
+
+给定数据集
+
+$$\{x^{(i)},y^{(i)}\}_1^N$$
+
+其中$x^{(i)}$为原始文本，$y^{(i)}$为给此文本做的分类标注(假设是one-hot vector，并且$\in \mathbb{R}^C$)，那么我们就可以用最基本的softmax线性分类器来进行训练。
+
+在已经获得了word vector的前提下，我们就可以用word vector代替原文本作为分类器的输入，在具体实现上可以把一个单词作为输入，也可以把几个单词(一个window)作为输入(window classification)。同时，我们不光可以训练分类器的参数$W$，也可以再训练word vector $\mathrm{x}$，如果要进行对word vector的再训练的话，我们需要保证训练的数据集足够大使得其几乎覆盖word vector中的全部的单词。
+
+
 \section{Neural Networks}
+
+\subsection{Max-Margin Object Function}
+
+我们考虑一个二元分类问题中一个与传统的交叉熵形式不同的object function，max-margin object function，我们会最小化
+
+\begin{eqnarray}
+\label{obmm}
+J=\max(\Delta+s_2-s_1, 0)
+\end{eqnarray}
+
+在这里面，我们假设对于特征空间中的每个点，我们通过神经网络(计算图)都能求出一个score $s$，我们不妨假设我们可以做到使得第一类中score的最大值$s_1$小于第二类中score的最小值$s_2$，我们希望两个类在(通过神经网络)投影到$\mathbb{R}$上时存在一个长度为$\Delta$的边界，即$s_1+\Delta \le s_2$，而作为object function的式[\ref{obmm}]就能够实现这一点。
 
 \subsection{Neuron, Terminology, Foward Propagation}
 
+我们考虑一个神经元的组成，一个神经元上(结点标号为$i$)的Foward Propagation通常由以下两步组成：
+
+\begin{eqnarray}
+z_i &=& b_i + \sum_{j}{a_j w_{ij}} \\
+a_i &=& f(z_i)
+\end{eqnarray}
+
+其中$w_{ij}$为weights，$b_i$为bias，都是需要学习的参数；$f(\cdot)$为activation function。对于整个网络的Foward Propagation，我们先对网络进行拓扑排序，然后按拓扑序对每个节点分别做Propagation。
+
+我们一般会使用fully-connected的神经网络，通常这种网络会有layer的概念，layer分为input layer $\mathrm{x}$，hidden layer $\mathrm{h}^{(i)}$，output layer $\mathrm{y}$，一般而言最后的输出$y=g(\mathrm{s})$, 这里的$\mathrm{s}$称为score，在这样分层数的神经网络中的Forward Propagation过程如下：
+
+\begin{eqnarray}
+\mathrm{h}^{(1)} &=& f(\mathrm{z}^{(1)}) = f(W^{(1)}\mathrm{x}+\mathrm{b}^{(1)}) \\
+\mathrm{h}^{(i)} &=& f(\mathrm{z}^{(i)}) = f(W^{(i)}\mathrm{h}^{(i-1)}+\mathrm{b}^{(i)}) \\
+\mathrm{y} &=& g(\mathrm{s}) = f(W^{(n+1)}\mathrm{h}^{(n)}+\mathrm{b}^{(n+1)})
+\end{eqnarray}
+
+这样的网络通常被称为$n$层的神经网络，一般而言这里的$n$层指的是hidden layer有$n$层，也有的地方说$n+2$层(连带输入输出层)。
+
+上面的三个式子是向量化的表述，在程序实现的时候我们倾向于用向量式的描述实现，其中$\mathrm{z}^{(i)},\mathrm{h}^{(i)},\mathrm{b}^{(i)}\in \mathbb{R}^{m_i}$，$W^{(i)} \in \mathbb{M}_{m_i\times m_{i-1}}$，其中$m_i$为第$i$层的神经元数。
+
 \subsection{Back Propagation, Computational Graph}
+
+我们首先考虑一般神经网络(计算图)的梯度的计算，其核心在于计算[\ref{deltadef}]，通过链式法则我们可以求得其表达式[\ref{deltaeq}]
+
+\begin{eqnarray}
+\label{deltadef}
+\delta_i &\triangleq& \frac{\partial J}{\partial z_i} \\
+\label{deltaeq}
+&=& f'(z_i)\sum_{k}{\delta_k w_{ki}}
+\end{eqnarray}
+
+那么，相关的参数的偏导也很好求了
+
+\begin{eqnarray}
+\frac{\partial J}{\partial w_{ij}} &=& \delta_i a_j \\
+\frac{\partial J}{\partial b_{i}} &=& \delta_i
+\end{eqnarray}
+
+继续考虑$n$层神经网络的梯度的计算：
+
+\begin{eqnarray}
+\delta^{(k)}&=&f'(\mathrm{z}^{(k)})\circ\big({W^{(k)}}^T\delta^{(k+1)}\big)\\
+\nabla_{W^{(k)}}&=&\delta^{(k+1)}{\mathrm{a}^{(k)}}^T
+\end{eqnarray}
+
+其中$\circ$为向量的element-wise的乘法运算。
 
 \subsection{Tips and Tricks}
 
+整个神经网络的设计调试包括以下几个方面：
+
+\begin{itemize}
+	\item[1.] 设计神经网络的结构，包括输入输出层，中间的连接层(RNN, CNN, FULL)。
+	\item[2.] 对于全连接层，设计activation function。
+	\item[3.] 调试，主要进行gradient check。
+	\item[4.] 参数初始化。
+	\item[5.] 进行优化过程。
+	\item[6.] 判断模型是否足够强大会导致过拟合，如果会导致过拟合的话使用regularization，否则重新设计模型。
+\end{itemize}
+
+我们下面依次考虑这些问题。
+
+\subsubsection*{Non-linearities}
+
+主要有以下几种activation function：
+
+\begin{itemize}
+	\item $\sigma(z)$: 我们之间介绍的sigmoid函数。
+	\item $\tanh(z)$: 一般而言，其效果比sigmoid函数好。
+	\item ReLU: $f(z)=max(z, 0)$: 导数计算方便并且不会有gradient vanishing的问题。
+\end{itemize}
+
+还有一些函数比如hard tanh, soft sign, Leaky ReLU之类。
+
+\subsubsection*{Gradient Check}
+
+通常gradient check，我们使用以下式子
+
+\begin{eqnarray}
+f'_i(\theta)\approx\frac{f(\theta^{(i+)})-f(\theta^{(i-)})}{2\epsilon}
+\end{eqnarray}
+
+其中$\theta^{(i+)}$为让$\theta$的第$i$维加上$\epsilon$，其余维不变的向量，$\theta^{(i-)}$的含义类似，值得注意的是，在具体实现的时候，每次给第$i$维加上一个$\epsilon$到迭代到第$i+1$维的时候需要恢复第$i$维的结果。
+
+\subsubsection*{Parameter Initialization}
+
+(Xavuer et al. 2010)表示对于$\tanh(z)$来说最好的$W^{(i)}$的初始化的方法是：
+
+\begin{eqnarray}
+W \sim \mathcal{U}\Big[ -\sqrt{\frac{6}{m_{i}+m_{i-1}}}, \sqrt{\frac{6}{m_{i}+m_{i-1}}}\Big]
+\end{eqnarray}
+
+对于sigmoid函数来说，最好使用$4W$。
+
+\subsubsection*{Optimization Trick}
+
+我们一般使用SGD或者Mini-batch SGD来更新，关于learning rate与更新法则的相关优化有以下几种：
+
+\noindent \textbf{1. Momentum}
+
+改变更新法则变成：
+
+\begin{eqnarray}
+v &=& \mu v - \alpha\nabla_\theta J(\theta) \\
+\theta^{new} &=& \theta^{old} + v
+\end{eqnarray}
+
+一般取$v=0$，$\mu=0.9$。实际上这种方法有一定的物理意义，在于让学习下降的时候不要冲得“太过”。
+
+\noindent \textbf{Adagrad}
+
+在这里面，我们对于每一个参数都设置不同的参数，定义$g_{t,i}=\frac{\partial}{\partial \theta_i^t}J_t(\theta)$，那么，更新法则为：
+
+$$\theta_{t,i}=\theta_{t-1,i}-\frac{\alpha}{\sqrt{\sum_{\tau=1}^{t}{g_{\tau,i}}}}g_{t,i}$$
+
+\subsubsection*{Regularization}
+
+一般而言正则化的方法有以下几个：
+
+\begin{itemize}
+	\item 在object function中加入正则项(我们只惩罚$W$不惩罚$b$)。
+	\item Early-stopping
+	\item Sparsity Contraints，让大多数情况下神经元不被激励。
+	\item Dropout：在输入的时候让每一层随机选一半的神经元以0为输入，训练完成后把weights除以2，这样能够有效阻止feature co-adaptation，使得神经网络“记住“了某种模式从而丧失了推广性。
+\end{itemize}
 \section{Recurrent Neural Networks}
 
 \section{Recursive Neural Networks}
