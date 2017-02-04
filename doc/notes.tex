@@ -1,0 +1,352 @@
+\documentclass{article}
+
+\usepackage{graphicx}
+\usepackage{xeCJK}
+\usepackage{bm}
+\usepackage{amsmath,amsthm,amssymb,amsfonts}
+\usepackage{cite}
+\usepackage[colorlinks,linkcolor=red,anchorcolor=blue,citecolor=green,CJKbookmarks=true]{hyperref}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[margin=3.5cm]{geometry}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \linespread{1.6}
+\geometry{left=3.2cm,right=3.2cm,top=3.2cm,bottom=3.2cm}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{ulem}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{lipsum}
+\setenumerate[1]{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+\setitemize[1]{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+\setdescription{itemsep=0pt,partopsep=0pt,parsep=\parskip,topsep=5pt}
+%定理
+\makeatletter
+\thm@headfont{\sc}
+\makeatother
+\newtheorem{theorem}{Theorem}
+%%%%%%%%%%%%% C++ Code
+\usepackage{color}
+\usepackage{xcolor}
+\definecolor{keywordcolor}{rgb}{0.8,0.1,0.5}
+\usepackage{listings}
+\lstset{breaklines}%这条命令可以让LaTeX自动将长的代码行换行排版
+\lstset{extendedchars=false}%这一条命令可以解决代码跨页时，章节标题，页眉等汉字不显示的问题
+\lstset{ %用于设置语言为C++
+    keywordstyle=\color{keywordcolor} \bfseries, 
+    %identifierstyle=,
+    basicstyle=\ttfamily, 
+    commentstyle=\color{blue} \textit,
+    stringstyle=\ttfamily, 
+    showstringspaces=false,
+    frame=shadowbox, %边框
+    %captionpos=b
+}
+
+
+%\setCJKmainfont[BoldFont = 黑体]{宋体}
+\setlength{\parindent}{2em}
+%如果不要缩进 用\noindent
+\title{Deep Learning for Natural Language Processing \\ (cs224d) \\ Lecture Notes}
+
+\author{\large Yihong Gu\footnote{gyh15@mails.tsinghua.edu.cn}}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\section{NLP and DL: introduction}
+
+\subsection{Natural Language Processing}
+
+\subsubsection*{Hierarchical Stages}
+
+首先，需要了解关于Natural Language Processing的几个层次：
+
+\begin{itemize}
+	\item \textbf{Phonetic Analysis}/\textbf{OCR}阶段：主要解决的是自然语言的输入端的问题，其中\textbf{Phonetic}为语音、\textbf{OCR}为文本。
+	\item \textbf{Morphological Analysis}: 主要解决词的合成的问题，比如词的前缀和后缀的意义(e.g. un-)。
+	\item \textbf{Syntactic Analysis}: 主要解决句法合成的问题，研究词如何通过语法结构进行组合。
+	\item \textbf{Semantic Interpretation}: 主要解决句子含义(meaning)的问题。
+	\item \textbf{Discourse Processing}: 主要解决整篇文章的理解的问题。
+\end{itemize}
+
+\subsubsection*{Difficulty}
+
+传统的NLP的困难之处主要在以下两个方面，第一个方面是知识(knowledge)的表示，以下面句子为例
+
+\begin{center}
+\begin{quote}
+Jane hit June and then \textbf{she} [fell/ran]
+\end{quote}
+\end{center}
+
+显然，fell和ran分别让she有了不同的指代(Jane/June)，如果要让机器能够准确作出正确的指代关系的话，仅仅考虑单词的意思和语法结构是不够的，机器需要理解hit和fell/ran之间的逻辑关系，这需要进一步的先验知识。
+
+第二个方面是模糊性(ambiguity)，即多重含义。
+
+\subsection{Deep Learning}
+
+\subsubsection*{Representation Learning}
+
+我们考虑一个传统的(预测类)机器学习过程，我们把它分成两部分
+
+$$\text{Machine Learning} = \text{Feature Engineering}+\text{Learning Algorithm}$$
+
+在这样的过程中，我们拿到数据(data)，先要人工设计数据的特征表示(representation)，然后再使用特定的机器学习算法。通常而言，特征表示在整个过程的地位更高并且需要花费更多的精力。
+
+而Deep Learning是什么？我们可以把它看成一种特征学习(representation learning)，它能够从大量的数据中自动地学习特征。在具体实践中，Deep Learning更加灵活，适用性也更强，一个适用于某个问题的DL模型可以直接运用于另外一个问题上。
+
+\subsubsection*{Visualization}
+
+值得注意的是，可视化(\textbf{visualization})在DL中非常重要，我们通常会(使用PCA等方法)把我们从DL中学到的feature投影到二维空间作可视化，我们可以从中发现一些非常有趣的性质：对于NLP问题来说，一个非常广泛的性质在于意思相近的单词/短语/句子在这样的欧几里得空间中也靠的更近。
+
+\subsubsection*{DL+NLP}
+
+我们考虑DL在NLP上的应用，其核心在于把单词/短语/句子映射成$d$维空间中的向量，进而进行进一步的分析。
+
+\section{Word Vector}
+
+Word Vector的意义在于把单词映射成$d$维空间中的向量。关于word vector(以及之后的NLP)，我们有一些相关的术语：
+
+\begin{itemize}
+	\item \textbf{corpus}: 指用来作训练的文本全集。
+	\item \textbf{token}: 文本中的某个单一的元素，可以是一个单词，也可以是一个标点，也可以是开始符／结束符。
+\end{itemize}
+
+传统的NLP中，关于单词有三种表示方法：
+
+\begin{itemize}
+	\item one-hot: 单词的词向量$\in \mathbb{R}^{\lvert V\rvert}$，其中$\lvert V\rvert$为单词总数。
+	\item taxonomy: 建立词与词之间的从属关系(is-a)，比如flower从属于plant(flower \textbf{is-a} plant)，相关的工作有WordNet。
+	\item synonym set: 建立同义词/近义词集合。
+\end{itemize}
+
+\subsection{Statistical Based Method: SVD}
+
+\subsubsection*{Model}
+
+首先，我们通过文本构造\textbf{Window based Co-occurence Matrix}，考虑构造这样一个矩阵$X \in \mathbb{M}_{\lvert V\rvert \times \lvert V\rvert}$，其\textbf{window size}为$W$，那么，如果单词$w_j$在单词$w_i$的大小为$W$的window中出现，$X_{i,j}$就累加$1$，下面是一个例子
+
+\begin{quote}
+\begin{itemize}
+	\item[1.] I enjoy flying.
+	\item[2.] I like NLP.
+	\item[3.] I like deep learning.
+\end{itemize}
+\end{quote}
+
+其对应的co-occurence matrix $X$为：
+
+\begin{equation}X=\label{cooccurence_matrix}\bordermatrix{
+& I & like & enjoy & deep & learning & NLP & flying & .\cr
+       I & 0 & 2 & 1 & 0 & 0 & 0 & 0 & 0\cr
+    like & 2 & 0 & 0 & 1 & 0 & 1 & 0 & 0\cr
+   enjoy & 1 & 0 & 0 & 0 & 0 & 0 & 1 & 0\cr
+    deep & 0 & 1 & 0 & 0 & 1 & 0 & 0 & 0\cr
+learning & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 1\cr
+     NLP & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 1\cr
+  flying & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 1\cr
+       . & 0 & 0 & 0 & 0 & 1 & 1 & 1 & 0
+}\end{equation}
+
+注意到这里的矩阵$X$为对称矩阵，我们对其作SVD，令$X=\mathcal{U}\mathrm{S}\mathcal{V}$，其中$\mathcal{U},\mathcal{V} \in \mathbb{M}_{\lvert V\rvert\times \lvert V\rvert}$并且是正定矩阵，$\mathrm{S} \in \mathbb{M}_{\lvert V\rvert\times\lvert V\rvert}$并且是对角矩阵，记$\sigma_i=S_{i,i}$，取$\mathcal{U}$的前$K$列$\mathcal{U}^{[,1:K]}$作为最后的$K$维word vector，这时候第$i$行的向量$\mathrm{u}_i=\mathcal{U}^{[,1:K]}_i$即为单词$w_i$的word vector。
+
+\subsubsection*{Drawbacks and Extensions}
+
+这样的模型主要有以下几个问题：
+
+\begin{itemize}
+	\item 由矩阵本身引起的问题：矩阵太大并且非常稀疏、加入新单词后拓展非常耗时间。
+	\item 关于co-occurence的问题：需要解决部分词出现太频繁所导致的问题(比如the etc.)。
+\end{itemize}
+
+我们考虑这两类的问题的解决方案，首先是co-occurence的问题，我们可以用以下的方案来解决：
+
+\begin{itemize}
+	\item [1.] 令$X^*_{i,j}=min(X_{i,j}, t)$，其中$t \sim 100$
+	\item [2.] 使用pearson correlation，同时让负值取0从而代替原来的简单的计数。
+	\item [3.] 使用ramp window：给window的不同位置加权，一个比较自然的想法是距离更近的位置的权值更高。
+\end{itemize}
+
+我们无法很好的解决第一个问题，这就引入了下面的\ref{word2vec}的内容。
+
+\subsection{Iteration Based Methods: word2vec}
+\label{word2vec}
+
+我们在本节的模型中都会运用到以下记号：
+
+\begin{itemize}
+	\item $w_i$为单词集(vocabulary)中的第$i$个单词
+	\item $n$为单词空间的维数
+	\item $\mathcal{V}\in\mathbb{R}^{n\times\lvert V\rvert}$为input word matrix，其中$\mathrm{v}_i$是$\mathcal{V}$的第$i$列，表示单词$w_i$的input vector
+	\item $\mathcal{U}\in\mathbb{R}^{n\times\lvert V\rvert}$output word matrix，其中$\mathrm{u}_i$是$\mathcal{U}$的第$i$列，表示单词$w_i$output vector
+	\item window size为$m$。
+\end{itemize}
+
+\subsubsection*{CBOW Model}
+
+在CBOW(Continuous Bag of Word)模型中，我们考虑一个问题：使用周围的单词(context)预测中间的单词(center word)，我们考虑使用以下的预测模型结构：
+
+假设我们需要预测的单词是$w^{(c)}$，其周围的单词为$w^{(c-m)},\cdots,w^{(c-1)},w^{(c+1)},\cdots,w^{(c+m)}$，为了方便表示，我们使用这些单词的one-hot表示形式$\mathrm{x}^{(c-m)},\cdots,\mathrm{x}^{(c-1)},\mathrm{x}^{(c+1)},\cdots,\mathrm{x}^{(c+m)}$，则相应的单词$w^{(c+i)}$所对应的input vector为
+
+\begin{eqnarray}
+\mathrm{v}^{(c+i)}=\mathcal{V} \mathrm{x}^{(c+i)}
+\end{eqnarray}
+
+我们对这$2m$个向量取平均，得到一个$n$维向量$\hat{\mathrm{v}}$
+
+\begin{eqnarray}
+\hat{\mathrm{v}}=\frac{1}{2m}(\mathrm{v}^{(c-m)}+\cdots+\mathrm{v}^{(c-1)}+\mathrm{v}^{(c+1)}+\cdots+\mathrm{v}^{(c+m)})
+\end{eqnarray}
+
+接下来我们得到了一个得分向量(score vector)$\mathrm{z}$，这里$\mathrm{z}\in\mathbb{R}^{\lvert V\rvert}$其第$i$个元素表示$\hat{\mathrm{v}}$和第$i$个单词的输出向量的相似程度，这里的相似程度用点乘的大小来度量)：
+
+\begin{eqnarray}
+\mathrm{z}=\mathcal{U}\hat{\mathrm{v}}
+\end{eqnarray}
+
+最后我们把得分向量作一个softmax变换得到中心的单词的概率分布
+
+\begin{eqnarray}
+\hat{\mathrm{y}} = \mathrm{softmax}(\mathrm{z})
+\end{eqnarray}
+
+我们定义损失函数(统计/决策论意义上的)$H$为：
+
+\begin{eqnarray}
+H(\mathrm{y},\hat{\mathrm{y}})=-\sum_{y=1}^{\lvert V\rvert}{y_i\log(\hat{y}_i)}
+\end{eqnarray}
+
+实际上，如果让$\mathrm{y}$为center word的one-hot向量，其中$y_k=1$，那么，$H(\mathrm{y},\hat{\mathrm{y}})$可以简化为
+
+\begin{eqnarray}
+H(\mathrm{y},\hat{\mathrm{y}})=-y_k\log(\hat{y}_k)
+\end{eqnarray}
+
+我们写出最后的object function的化简形式
+
+\begin{eqnarray}
+J &=& -\log\mathbb{P}(\mathrm{u_c}\lvert w^{(c-m)},\cdots,w^{(c-1)},w^{(c+1)},\cdots,w^{(c+m)}) \\
+  &=& -\log\frac{\exp(\mathrm{u}_c^T\hat{\mathrm{v}})}{\sum_{j=1}^{\lvert V\rvert}{\exp(\mathrm{u}_j^T\hat{\mathrm{v}})}} \\
+  &=& -\mathrm{u}_c^T\hat{\mathrm{v}} + \log\sum_{j=1}^{\lvert V\rvert}{\exp(\mathrm{u}_j^T\hat{\mathrm{v}})}
+\end{eqnarray}
+
+其中$\mathrm{u}_c$为center word的output vector。
+
+结合上面的表达式，我们需要对这两个vector有一个直观的认识，实际上，我们的优化目标是让每个center word周围的单词的input vector的平均值尽量接近其output vector。
+
+\subsubsection*{Skip-Gram Model}
+
+Skip-Gram Model的方向正好和CBOW相反，在Skip-Gram中，我们给定中间的center word，需要预测周围的context，为了简化描述，我们直接给出概率形式的表达：式[\ref{skipprobsingle}]给出了给定中间单词$w_c$，单词$w_o$在其window中出现的概率；式[\ref{skiplossprob}]给出了损失函数的形式，这里我们使用了近一步的独立性假设$\mathbb{P}(w_{c-m},\cdots,w_{c-1},c_{c+1},\cdots,w_{c+m}\lvert w_c)=\prod_{j=-m,j\neq 0}^{m} \mathbb{P}(w_{c+j}\lvert w_c)$(虽然这非常不符合实际)；我们把[\ref{skipprobsingle}]代入[\ref{skiplossprob}]并且进一步化简得到式[\ref{skiploss}]
+
+\begin{eqnarray} \label{skipprobsingle}
+\mathbb{P}(w_o\lvert w_c) &=& \frac{\exp(\mathrm{u}_o^T\mathrm{v}_c)}{\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}} \\
+\label{skiplossprob}
+J &=& -\log\prod_{j=-m,j\neq 0}^{m} \mathbb{P}(w_{c+j}\lvert w_c) \\
+\label{skiploss}
+J &=& -\sum_{j=-m,j\neq 0}^{m}{\mathrm{u}_{c+j}^T\mathrm{v}_c}+2m\log\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}
+\end{eqnarray}
+
+我们给出梯度的表达式：
+
+\begin{eqnarray}
+\frac{\partial J}{\partial \mathrm{v}_c}&=&-\sum_{j=-m,j\neq 0}^{m}{\mathrm{u}_{c+j}^T}+2m\sum_{x=1}^{\lvert V\rvert}{\frac{\exp(\mathrm{u}_x^T\mathrm{v}_c)}{\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}}\mathrm{u}_x^T}\\
+\frac{\partial J}{\partial \mathrm{u}_x}&=&m \frac{\exp(\mathrm{u}_x^T\mathrm{v}_c)}{\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}}\mathrm{v}_c^T - y_x\mathrm{v}_c^T
+\end{eqnarray}
+
+但是，最后我们的形式仅考虑一对$\mathbb{P}(o\lvert c)$，最后的object function的结果如式[\ref{skipof}]，梯度的表达式如式[\ref{skipgrad1}]和[\ref{skipgrad2}]
+
+\begin{eqnarray}
+\label{skipof}
+J &=& -\mathrm{u}_{c+j}^T\mathrm{v}_c + \log\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)} \\
+\label{skipgrad1}
+\frac{\partial J}{\partial \mathrm{v}_c}&=&-\mathrm{u}_{c+j}^T+\sum_{x=1}^{\lvert V\rvert}{\frac{\exp(\mathrm{u}_x^T\mathrm{v}_c)}{\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}}\mathrm{u}_x^T} \\
+\label{skipgrad2}
+\frac{\partial J}{\partial \mathrm{u}_x}&=&\frac{\exp(\mathrm{u}_x^T\mathrm{v}_c)}{\sum_{k=1}^{\lvert V\rvert}{\exp(\mathrm{u}_k^T\mathrm{v}_c)}}\mathrm{v}_c^T - y_x\mathrm{v}_c^T
+\end{eqnarray}
+
+\subsubsection*{Negative Sampling}
+
+考虑到以上的模型在实际计算中运算量非常大，所以我们考虑另外一种近似方法，这种近似方法的阐述也分成两个部分：第一个部分是object function，第二个部分是gradient。
+
+首先，我们考虑Skip-Gram Model的Negative Sampling的近似优化方法：
+
+我们使用$(x,c)$来分别表示$(\text{context},\text{center})$，同时记$D=\{(x,c)\lvert w_x=w^{(c+j)}, -m\le j\le m, j\neq 0\}$，那么，我们可以得到另外一种$\mathcal{P}(w_o\lvert w_c)$的表达式[\ref{nsskipprobsingle}]
+
+\begin{eqnarray}
+\label{nsskipprobsingle}
+\mathbb{P}\big((o,c)\in D\big) = \sigma(\mathrm{u}_o^T\mathrm{v}_c) = \frac{1}{1+\exp(-\mathrm{u}_o^T\mathrm{v}_c)}
+\end{eqnarray}
+
+同时使用独立性条件，我们写出object function的表达式[\ref{ofskip}]，将[\ref{nsskipprobsingle}]的结果代入，得到最终的表达式[\ref{ofskipf}]
+
+\begin{eqnarray}
+\label{ofskip}
+J &=& -\log\Big\{\prod_{(o,c) \in D}{\mathbb{P}\big((o,c) \in D\big)}\prod_{(x,c)}{\mathbb{P}\big((w,c) \in \bar{D}\big)}\Big\} \\
+\label{ofskipf}
+J &=& -\sum_{(o,c) \in D}{\log(\sigma(\mathrm{u}_o^T\mathrm{v}_c))} - \sum_{(w,c) \in \bar{D}}{\log(\sigma(-\mathrm{u}_w^T\mathrm{v}_c))}
+\end{eqnarray}
+
+我们把$\bar{D}$称为nagative corpus，在具体求解的时候，我们在$\bar{D}$中随机抽$K$个组成(一对的)object function [\ref{ofnsskip}]，其梯度为 [\ref{ofnsskipgrad1}], [\ref{ofnsskipgrad2}] 和 [\ref{ofnsskipgrad3}]，其中每个单词被抽到的概率服从分布 [\ref{ofnsdis}]：
+
+\begin{eqnarray}
+\label{ofnsskip}
+J &=& -\log(\sigma(\mathrm{u}_{c+j}^T\mathrm{v}_c)) - \sum_{k=1}^K{\log(\sigma(-\bar{\mathrm{u}}_k^T\mathrm{v}_c))}\\
+\label{ofnsskipgrad1}
+\frac{\partial J}{\partial \mathrm{v}_c} &=& -\big(1-\sigma(\mathrm{u}_{c+j}^T\mathrm{v}_c)\big)\mathrm{u}_{c+j}^T + \sum_{k=1}^K{\big(1-\sigma(-\bar{\mathrm{u}}_k^T\mathrm{v}_c)\big)\bar{\mathrm{u}}_k^T} \\
+\label{ofnsskipgrad2}
+\frac{\partial J}{\partial \mathrm{u}_{c+j}} &=& -\big(1-\sigma(\mathrm{u}_{c+j}^T\mathrm{v}_c)\big)\mathrm{v}_{c}^T \\
+\label{ofnsskipgrad3}
+\frac{\partial J}{\partial \bar{\mathrm{u}}_k} &=& \big(1-\sigma(-\bar{\mathrm{u}}_k^T\mathrm{v}_c)\big)\mathrm{v}_{c}^T \\
+\label{ofnsdis}
+\mathbb{P}(w) &\propto& \big(\text{frequency of word $w$}\big)^{3/4}
+\end{eqnarray}
+
+同样，我们考虑CBOW Model的Negative Sampling的近似优化方法：
+
+沿用之前的记号，类似的，我们可以得出object function：
+
+\begin{eqnarray}
+J &=& -\log(\sigma(\mathrm{u}_c^T\hat{\mathrm{v}})) - \sum_{w \neq c}{\log(\sigma(-\mathrm{u}_w^T\hat{\mathrm{v}}))}
+\end{eqnarray}
+
+同样，我们可以得出(一对的)object function [\ref{ofnscbow}]，梯度 [\ref{ofnscbowgrad1}], [\ref{ofnscbowgrad2}] 和 [\ref{ofnscbowgrad3}]。
+
+\begin{eqnarray}
+\label{ofnscbow}
+J &=& -\log(\sigma(\mathrm{u}_c^T\hat{\mathrm{v}})) - \sum_{k=1}^K{\log(\sigma(-\bar{\mathrm{u}}_k^T\hat{\mathrm{v}}))}\\
+\label{ofnscbowgrad1}
+\frac{\partial J}{\partial \mathrm{v}_{c+j}} &=& \frac{1}{2m}\Big\{-\big(1-\sigma(\mathrm{u}_{c}^T\hat{\mathrm{v}})\big)\mathrm{u}_{c}^T + \sum_{k=1}^K{\big(1-\sigma(-\bar{\mathrm{u}}_k^T\hat{\mathrm{v}})\big)\bar{\mathrm{u}}_k^T}\Big\} \\
+\label{ofnscbowgrad2}
+\frac{\partial J}{\partial \mathrm{u}_{c}} &=& -\big(1-\sigma(\mathrm{u}_{c}^T\hat{\mathrm{v}})\big)\hat{\mathrm{v}}^T \\
+\label{ofnscbowgrad3}
+\frac{\partial J}{\partial \bar{\mathrm{u}}_k} &=& \big(1-\sigma(-\bar{\mathrm{u}}_k^T\hat{\mathrm{v}})\big)\hat{\mathrm{v}}^T \\
+\end{eqnarray}
+
+\subsection{Evaluation: Intrinsic and Extrinsic}
+
+\section{Neural Networks}
+
+\subsection{Neuron, Terminology, Foward Propagation}
+
+\subsection{Back Propagation, Computational Graph}
+
+\subsection{Tips and Tricks}
+
+\section{Recurrent Neural Networks}
+
+\section{Recursive Neural Networks}
+
+\section{}
+\end{document}
